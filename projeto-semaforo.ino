@@ -8,10 +8,11 @@ const int yellowPin = 9;       // LED amarelo do semáforo de carros
 const int greenPin = 8;        // LED verde do semáforo de carros
 const int redPedestre = 7;     // LED vermelho do semáforo de pedestres
 const int greenPedestre = 6;   // LED verde do semáforo de pedestres
-const int buttonPin = 5;       // Botão para travessia de pedestres
+const int buttonPin = 2;       // Botão para travessia de pedestres
+const int buttonNight = 3;
 
 // Pinos do LCD
-const int rs = 3, en = 4, d4 = A2, d5 = A3, d6 = A4, d7 = A5; 
+const int rs = 5, en = 4, d4 = A2, d5 = A3, d6 = A4, d7 = A5; 
 LiquidCrystal lcd(rs, en, d4, d5, d6, d7); // Inicializa o LCD 16x2 com os pinos definidos
 
 // Variáveis para o tempo
@@ -20,7 +21,7 @@ volatile bool nightModeActivated = false; // Indica se o modo noturno foi ativad
 unsigned long previousMillis = 0;         // Marca o último tempo para o semáforo
 unsigned long lcdPreviousMillis = 0;      // Marca o último tempo para o avanço da hora no LCD
 const long interval = 1000;               // Intervalo de 1 segundo para o semáforo
-const long fastHourInterval = 3000;       // Intervalo de 5 segundos para "avançar" uma hora
+const long fastHourInterval = 3000;       // Intervalo de segundos para "avançar" uma hora
 int state = 0;                            // Estado atual do semáforo (0: vermelho, 1: amarelo, 2: verde)
 volatile int hours = 6;                   // Hora inicial (6:00)
 
@@ -34,6 +35,7 @@ void setup() {
   pinMode(greenPin, OUTPUT);
   pinMode(redPedestre, OUTPUT);
   pinMode(greenPedestre, OUTPUT);
+  pinMode(buttonNight, OUTPUT);
   pinMode(buttonPin, INPUT_PULLUP); // Configura o botão com resistor interno de pull-up
 
   // Inicialização do LCD
@@ -49,7 +51,7 @@ void setup() {
 
   // Configuração das interrupções
   attachInterrupt(digitalPinToInterrupt(buttonPin), pedestrianRequest, FALLING);
-  attachInterrupt(1, checkNightMode, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(buttonNight), NightMode, CHANGE);
 }
 
 void loop() {
@@ -66,18 +68,11 @@ void loop() {
   }
 
   // Controle do semáforo no modo noturno (entre 00:00 e 05:59)
-  if (nightModeActivated) {
-    digitalWrite(yellowPin, HIGH);  // Mantém o LED amarelo piscando
-    delay(500); // Pisca o amarelo a cada meio segundo
-    digitalWrite(yellowPin, LOW);
-    delay(500);
-  } else {
-    // Resposta ao botão para pedestres
-    if (!clockActivated && digitalRead(buttonPin) == LOW) {
-      pedestrianRequest(); // Se o botão for pressionado, ativa a interrupção
-    }
-    
-    // Controle normal do semáforo
+  if (hours >= 0 && hours < 5) {
+    digitalWrite(buttonNight, HIGH);
+  }
+  else{
+      // Controle normal do semáforo
     if (currentMillis - previousMillis >= interval) { // Altera o estado do semáforo a cada 1 segundo
       previousMillis = currentMillis;
       if (state == 0) {
@@ -111,7 +106,6 @@ void loop() {
 
 void pedestrianRequest() {
   // Interrupção para o botão dos pedestres
-  clockActivated = true;
   // Sinaliza para carros pararem e pedestres atravessarem
   digitalWrite(redPin, HIGH);
   digitalWrite(yellowPin, LOW);
@@ -119,14 +113,13 @@ void pedestrianRequest() {
   digitalWrite(greenPedestre, HIGH);
   digitalWrite(redPedestre, LOW);
   delay(5000); // Mantém o estado por 5 segundos
-  clockActivated = false;
 }
-
-void checkNightMode() {
-  // Interrupção para o modo noturno entre 00:00 e 05:00
-  if (hours >= 0 && hours < 5) {
-    nightModeActivated = true;
-  } else {
-    nightModeActivated = false;
+  
+void NightMode(){
+  while (buttonNight == HIGH){
+    digitalWrite(yellowPin, HIGH);
+    delay(500);
+    digitalWrite(yellowPin, LOW);
+    delay(500);
   }
 }
